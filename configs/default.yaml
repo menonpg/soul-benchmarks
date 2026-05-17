@@ -1,0 +1,14 @@
+# Default benchmark configuration
+
+provider: anthropic
+model: claude-sonnet-4-20250514
+
+# Memory modes to test
+modes:
+  - rag
+  - rlm
+  - auto
+
+# Scoring
+use_llm_judge: true
+judge_model: claude-sonnet-4-20250514

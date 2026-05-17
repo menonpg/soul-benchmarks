@@ -1,0 +1,5 @@
+soul-agent
+datasets
+pyyaml
+tabulate
+httpx
