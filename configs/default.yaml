@@ -1,7 +1,7 @@
 # Default benchmark configuration
 
-provider: anthropic
-model: claude-sonnet-4-20250514
+backend: gemini  # gemini or azure
+provider: gemini
 
 # Memory modes to test
 modes:
@@ -11,4 +11,3 @@ modes:
 
 # Scoring
 use_llm_judge: true
-judge_model: claude-sonnet-4-20250514

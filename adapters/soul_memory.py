@@ -1,46 +1,103 @@
-"""Adapter wrapping soul-agent as a memory backend for benchmarks."""
+"""Adapter wrapping soul.py HybridAgent for benchmarks.
+
+Uses the local HybridAgent (RAG + RLM) from the soul.py repo directly.
+No external API needed — BM25 for RAG, local LLM calls for RLM.
+"""
 
 from __future__ import annotations
 
+import os
+import sys
+import tempfile
+from pathlib import Path
 from typing import Literal
 
-from soul import Soul
+# Add soul.py repo to path
+SOUL_REPO = Path(__file__).resolve().parents[1].parent / "soul.py"
+sys.path.insert(0, str(SOUL_REPO))
 
+from hybrid_agent import HybridAgent
 
 MemoryMode = Literal["rag", "rlm", "auto"]
 
 
 class SoulMemoryAdapter:
-    """Thin wrapper around soul.py for benchmark integration."""
+    """Wraps HybridAgent for benchmark evaluation."""
 
     def __init__(
         self,
-        provider: str = "anthropic",
-        model: str = "claude-sonnet-4-20250514",
+        provider: str = "gemini",
+        model: str | None = None,
         mode: MemoryMode = "auto",
-        user_id: str = "benchmark-user",
+        api_key: str | None = None,
     ):
         self.mode = mode
-        self.soul = Soul(
-            provider=provider,
-            model=model,
-            user_id=user_id,
+        self.provider = provider
+        self._tmpdir = tempfile.mkdtemp(prefix="soul-bench-")
+
+        soul_path = Path(self._tmpdir) / "SOUL.md"
+        memory_path = Path(self._tmpdir) / "MEMORY.md"
+        soul_path.write_text(
+            "You are a memory-enabled assistant for benchmark evaluation. "
+            "Answer questions precisely and concisely based on what you remember. "
+            "If you don't have enough information, say so.\n"
         )
+        memory_path.write_text("# MEMORY.md\n")
+
+        kwargs = dict(
+            soul_path=str(soul_path),
+            memory_path=str(memory_path),
+            provider=provider,
+            mode=mode,
+        )
+        if model:
+            kwargs["chat_model"] = model
+        if api_key:
+            kwargs["api_key"] = api_key
+
+        self.agent = HybridAgent(**kwargs)
 
     def add_memory(self, conversation_text: str) -> None:
-        """Ingest conversation text into memory via soul.remember()."""
-        self.soul.remember(conversation_text)
+        """Ingest conversation text into memory."""
+        self.agent.remember(conversation_text)
 
     def query_memory(self, question: str) -> str:
-        """Query memory and return answer via soul.ask()."""
-        response = self.soul.ask(question)
-        return response if isinstance(response, str) else str(response)
+        """Query memory and return answer."""
+        result = self.agent.ask(question, remember=False)
+        if isinstance(result, dict):
+            return result.get("answer", result.get("response", str(result)))
+        return str(result)
 
     def reset(self) -> None:
-        """Reset memory state for a fresh benchmark run."""
-        # Re-initialize to clear state
-        self.soul = Soul(
-            provider=self.soul.provider,
-            model=self.soul.model,
-            user_id=self.soul.user_id,
-        )
+        """Reset memory state."""
+        memory_path = Path(self._tmpdir) / "MEMORY.md"
+        memory_path.write_text("# MEMORY.md\n")
+        self.agent.reset_conversation()
+
+
+def create_gemini_adapter(mode: MemoryMode = "auto") -> SoulMemoryAdapter:
+    """Create adapter using Gemini."""
+    return SoulMemoryAdapter(
+        provider="gemini",
+        mode=mode,
+        api_key=os.environ.get("GEMINI_API_KEY"),
+    )
+
+
+def create_azure_adapter(mode: MemoryMode = "auto") -> SoulMemoryAdapter:
+    """Create adapter using Azure OpenAI via openai-compatible."""
+    from openai import AzureOpenAI
+
+    # For Azure we need to use the basic Agent with monkey-patched client
+    # since HybridAgent uses its own REST clients
+    # Actually, let's use openai-compatible provider
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    key = os.environ["AZURE_OPENAI_KEY"]
+    deployment = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5-chat")
+
+    return SoulMemoryAdapter(
+        provider="openai-compatible",
+        model=deployment,
+        mode=mode,
+        api_key=key,
+    )

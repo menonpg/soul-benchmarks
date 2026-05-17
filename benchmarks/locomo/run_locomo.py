@@ -16,9 +16,17 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from adapters.soul_memory import SoulMemoryAdapter
+from adapters.soul_memory import SoulMemoryAdapter, create_gemini_adapter
 
 CATEGORIES = ["single-hop", "multi-hop", "open-domain", "temporal"]
+
+CATEGORY_MAP = {
+    1: "single-hop",
+    2: "temporal",
+    3: "open-domain",
+    4: "multi-hop",
+    5: "multi-hop",
+}
 
 RESULTS_DIR = Path(__file__).parent / "results"
 
@@ -29,7 +37,6 @@ def load_dataset(data_path: str | None = None) -> list[dict]:
         with open(data_path) as f:
             return json.load(f)
 
-    # Download from snap-research/locomo
     import httpx
 
     url = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
@@ -38,7 +45,6 @@ def load_dataset(data_path: str | None = None) -> list[dict]:
     resp.raise_for_status()
     data = resp.json()
 
-    # Cache locally
     cache_path = Path(__file__).parent / "locomo10.json"
     with open(cache_path, "w") as f:
         json.dump(data, f)
@@ -47,21 +53,17 @@ def load_dataset(data_path: str | None = None) -> list[dict]:
 
 
 def classify_question(question: dict) -> str:
-    """Map a LoCoMo question to its category."""
-    cat = question.get("category", "").lower()
-    for c in CATEGORIES:
-        if c.replace("-", "") in cat.replace("-", "").replace("_", ""):
-            return c
+    cat = question.get("category")
+    if isinstance(cat, int):
+        return CATEGORY_MAP.get(cat, "other")
     return "other"
 
 
-def score_exact_match(predicted: str, ground_truth: str) -> float:
-    """Simple exact/substring match scoring."""
-    pred = predicted.strip().lower()
-    gt = ground_truth.strip().lower()
+def score_exact_match(predicted: str, ground_truth) -> float:
+    pred = str(predicted).strip().lower()
+    gt = str(ground_truth).strip().lower()
     if gt in pred or pred in gt:
         return 1.0
-    # Check keyword overlap
     gt_words = set(gt.split())
     pred_words = set(pred.split())
     if not gt_words:
@@ -70,23 +72,44 @@ def score_exact_match(predicted: str, ground_truth: str) -> float:
     return overlap
 
 
-def score_llm_judge(predicted: str, ground_truth: str, question: str, adapter: SoulMemoryAdapter) -> float:
-    """Use LLM-as-judge for open-domain questions."""
-    prompt = f"""You are a judge evaluating answer quality.
+def score_llm_judge(predicted: str, ground_truth, question: str, judge_adapter: SoulMemoryAdapter) -> float:
+    prompt = f"""You are a judge evaluating answer quality. Rate from 0.0 to 1.0.
 
 Question: {question}
 Ground truth answer: {ground_truth}
 Predicted answer: {predicted}
 
-Rate the predicted answer from 0.0 to 1.0 based on correctness and completeness.
 Reply with ONLY a number between 0.0 and 1.0."""
 
     try:
-        response = adapter.soul.ask(prompt)
-        score = float(str(response).strip())
-        return max(0.0, min(1.0, score))
-    except (ValueError, Exception):
+        response = judge_adapter.query_memory(prompt)
+        # Extract first float from response
+        import re
+        match = re.search(r'(\d+\.?\d*)', str(response))
+        if match:
+            score = float(match.group(1))
+            return max(0.0, min(1.0, score))
         return score_exact_match(predicted, ground_truth)
+    except Exception:
+        return score_exact_match(predicted, ground_truth)
+
+
+def make_adapter(config: dict, mode: str) -> SoulMemoryAdapter:
+    return create_gemini_adapter(mode=mode)
+
+
+def format_session(session: list, timestamp: str = "") -> str:
+    """Format a LoCoMo session (list of dialog turns) into text."""
+    parts = []
+    if timestamp:
+        parts.append(f"[Date: {timestamp}]")
+    for turn in session:
+        if isinstance(turn, dict):
+            speaker = turn.get("speaker", "")
+            text = turn.get("text", "")
+            if speaker and text:
+                parts.append(f"{speaker}: {text}")
+    return "\n".join(parts)
 
 
 def run_benchmark(config: dict, data_path: str | None = None) -> dict:
@@ -95,6 +118,9 @@ def run_benchmark(config: dict, data_path: str | None = None) -> dict:
     modes = config.get("modes", ["auto"])
     results = {}
 
+    # Create a judge adapter (separate from the test adapter)
+    judge = create_gemini_adapter(mode="rag")
+
     for mode in modes:
         print(f"\n{'='*60}")
         print(f"Running LoCoMo benchmark — mode: {mode}")
@@ -102,35 +128,48 @@ def run_benchmark(config: dict, data_path: str | None = None) -> dict:
 
         category_scores: dict[str, list[float]] = {c: [] for c in CATEGORIES}
         all_scores: list[float] = []
+        detailed_results: list[dict] = []
 
         for i, conversation in enumerate(dataset):
-            print(f"\nConversation {i+1}/{len(dataset)}")
-            adapter = SoulMemoryAdapter(
-                provider=config.get("provider", "anthropic"),
-                model=config.get("model", "claude-sonnet-4-20250514"),
-                mode=mode,
+            print(f"\nConversation {i+1}/{len(dataset)} (sample: {conversation.get('sample_id', '?')})")
+            adapter = make_adapter(config, mode)
+
+            # Ingest all sessions
+            conv_data = conversation.get("conversation", {})
+            session_keys = sorted(
+                [k for k in conv_data.keys() if k.startswith("session_") and not k.endswith("_date_time")],
+                key=lambda x: int(x.split("_")[1])
             )
 
-            # Ingest conversation sessions
-            sessions = conversation.get("conversation", [])
-            if isinstance(sessions, list):
-                for session in sessions:
-                    text = session if isinstance(session, str) else json.dumps(session)
+            for skey in session_keys:
+                session = conv_data[skey]
+                ts_key = f"{skey}_date_time"
+                timestamp = conv_data.get(ts_key, "")
+                text = format_session(session, timestamp)
+                try:
                     adapter.add_memory(text)
-            elif isinstance(sessions, str):
-                adapter.add_memory(sessions)
+                    print(f"  Ingested {skey} ({len(session)} turns)")
+                except Exception as e:
+                    print(f"  ERROR ingesting {skey}: {e}")
+                time.sleep(0.3)
 
             # Answer QA pairs
-            questions = conversation.get("questions", conversation.get("qa_pairs", []))
-            for q in questions:
-                question_text = q.get("question", q.get("q", ""))
-                ground_truth = q.get("answer", q.get("a", ""))
+            questions = conversation.get("qa", [])
+            for qi, q in enumerate(questions):
+                question_text = q.get("question", "")
+                ground_truth = str(q.get("answer", q.get("a", "")))
                 category = classify_question(q)
 
-                predicted = adapter.query_memory(question_text)
+                try:
+                    predicted = adapter.query_memory(question_text)
+                except Exception as e:
+                    print(f"  ERROR on Q{qi}: {e}")
+                    predicted = ""
+                    time.sleep(2)
 
+                # Score
                 if category == "open-domain":
-                    score = score_llm_judge(predicted, ground_truth, question_text, adapter)
+                    score = score_llm_judge(predicted, ground_truth, question_text, judge)
                 else:
                     score = score_exact_match(predicted, ground_truth)
 
@@ -138,25 +177,54 @@ def run_benchmark(config: dict, data_path: str | None = None) -> dict:
                     category_scores[category].append(score)
                 all_scores.append(score)
 
-                print(f"  [{category}] score={score:.2f} | Q: {question_text[:60]}...")
+                detailed_results.append({
+                    "conversation": i,
+                    "question": question_text,
+                    "ground_truth": ground_truth,
+                    "predicted": predicted[:500],
+                    "category": category,
+                    "score": score,
+                })
 
-            time.sleep(0.5)  # Rate limiting
+                if qi % 10 == 0:
+                    print(f"  Q{qi}/{len(questions)} [{category}] score={score:.2f}")
+
+                time.sleep(0.3)
+
+            # Print running totals
+            current_total = sum(all_scores) / len(all_scores) * 100 if all_scores else 0
+            print(f"  Running overall: {current_total:.1f}% ({len(all_scores)} questions)")
 
         # Aggregate
         mode_results = {}
         for cat, scores in category_scores.items():
-            mode_results[cat] = round(sum(scores) / len(scores), 4) if scores else None
-        mode_results["overall"] = round(sum(all_scores) / len(all_scores), 4) if all_scores else None
+            pct = round(sum(scores) / len(scores) * 100, 2) if scores else None
+            mode_results[cat] = pct
+        overall = round(sum(all_scores) / len(all_scores) * 100, 2) if all_scores else None
+        mode_results["overall"] = overall
         mode_results["total_questions"] = len(all_scores)
         results[mode] = mode_results
 
-        print(f"\nResults for mode={mode}:")
+        print(f"\n{'='*60}")
+        print(f"RESULTS — mode: {mode}")
+        print(f"{'='*60}")
         for k, v in mode_results.items():
-            print(f"  {k}: {v}")
+            if k != "total_questions":
+                print(f"  {k}: {v}%")
+            else:
+                print(f"  {k}: {v}")
 
-    # Save results
+        # Save detailed results
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = int(time.time())
+        detail_path = RESULTS_DIR / f"locomo_{mode}_detailed_{ts}.json"
+        with open(detail_path, "w") as f:
+            json.dump(detailed_results, f, indent=2)
+
+    # Save summary results
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = RESULTS_DIR / f"locomo_results_{int(time.time())}.json"
+    ts = int(time.time())
+    output_path = RESULTS_DIR / f"locomo_results_{ts}.json"
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nResults saved to {output_path}")
@@ -168,6 +236,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run LoCoMo benchmark for soul.py")
     parser.add_argument("--config", default="configs/default.yaml", help="Config file path")
     parser.add_argument("--data", default=None, help="Path to locomo10.json")
+    parser.add_argument("--mode", default=None, help="Override mode: rag, rlm, or auto")
     args = parser.parse_args()
 
     config_path = Path(args.config)
@@ -176,6 +245,9 @@ def main():
 
     with open(config_path) as f:
         config = yaml.safe_load(f)
+
+    if args.mode:
+        config["modes"] = [args.mode]
 
     run_benchmark(config, args.data)
 
