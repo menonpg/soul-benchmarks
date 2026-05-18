@@ -1,0 +1,12 @@
+{
+  "bm25": {
+    "config": "bm25",
+    "single-hop": 38.4,
+    "multi-hop": 77.8,
+    "open-domain": 50.83,
+    "temporal": 29.26,
+    "overall": 63.05,
+    "total_questions": 1986,
+    "errors": 0
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "qdrant": {
+    "config": "qdrant",
+    "single-hop": 36.45,
+    "multi-hop": 78.72,
+    "open-domain": 59.38,
+    "temporal": 26.97,
+    "overall": 63.42,
+    "total_questions": 1986,
+    "errors": 0
+  }
+}
