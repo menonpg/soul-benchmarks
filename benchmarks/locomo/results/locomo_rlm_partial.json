@@ -1,0 +1,22 @@
+{
+  "rlm_partial": {
+    "config": "rlm",
+    "note": "9/10 conversations complete. Conv 10 died at Q120/196 due to Gemini 429 rate limits.",
+    "conversations_completed": 9,
+    "conversations_total": 10,
+    "running_overall_after_9": 79.1,
+    "total_questions_scored": 1586,
+    "total_errors": 688,
+    "per_conversation": {
+      "conv_1": {"avg": 74.4, "questions": 199},
+      "conv_2": {"avg": 64.3, "questions": 105},
+      "conv_3": {"avg": 77.1, "questions": 193},
+      "conv_4": {"avg": 79.2, "questions": 260},
+      "conv_5": {"avg": 82.8, "questions": 242},
+      "conv_6": {"avg": 86.0, "questions": 158},
+      "conv_7": {"avg": 83.6, "questions": 190},
+      "conv_8": {"avg": 79.2, "questions": 239},
+      "conv_9": "in_progress_died_at_Q120"
+    }
+  }
+}
