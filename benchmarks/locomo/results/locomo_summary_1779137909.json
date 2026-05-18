@@ -1,0 +1,12 @@
+{
+  "rlm": {
+    "config": "rlm",
+    "single-hop": 54.13,
+    "multi-hop": 82.06,
+    "open-domain": 55.1,
+    "temporal": 39.99,
+    "overall": 69.99,
+    "total_questions": 1986,
+    "errors": 159
+  }
+}

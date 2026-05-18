@@ -1,0 +1,12 @@
+{
+  "hybrid": {
+    "config": "hybrid",
+    "single-hop": 45.97,
+    "multi-hop": 79.49,
+    "open-domain": 56.04,
+    "temporal": 29.84,
+    "overall": 65.57,
+    "total_questions": 1986,
+    "errors": 149
+  }
+}
