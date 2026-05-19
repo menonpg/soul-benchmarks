@@ -58,6 +58,7 @@ td.best{color:var(--green);font-weight:700}
 <div class="hero">
 <h1>LoCoMo Benchmark</h1>
 <p class="sub">Evaluating SoulMate's memory retrieval across 5 configurations on the <a href="https://github.com/snap-research/locomo" style="color:var(--accent)">LoCoMo</a> long-conversation memory benchmark. 1,986 questions across 10 conversations.</p>
+<p style="margin-top:1rem"><a href="https://huggingface.co/datasets/pgmenon/soul-benchmarks-locomo" style="background:linear-gradient(135deg,#ff9d00,#ffdd57);color:#000;padding:.4rem 1rem;border-radius:6px;font-weight:700;font-size:.85rem;text-decoration:none">🤗 Dataset on HuggingFace</a></p>
 <div class="stat-row">
 <div class="stat"><div class="num">70.0%</div><div class="label">RLM Overall (Best)</div></div>
 <div class="stat"><div class="num">+7pts</div><div class="label">vs Baseline</div></div>
@@ -148,6 +149,30 @@ We tested 5 retrieval configurations in <a href="https://github.com/menonpg/soul
 </section>
 
 <section>
+<h2>Competitor Comparison</h2>
+<p class="section-sub">soul.py vs other memory systems on LoCoMo. Competitor numbers from their published evaluations.</p>
+
+<div class="card">
+<table>
+<tr><th>System</th><th>Overall</th><th>Single-hop</th><th>Multi-hop</th><th>Open-domain</th><th>Temporal</th></tr>
+<tr><td>XMem <span style="color:var(--muted);font-size:.75rem">(Gemini 3-flash)</span></td><td class="best">91.5%</td><td>90.6%</td><td>92.3%</td><td>91.2%</td><td>91.9%</td></tr>
+<tr><td>Memobase</td><td>75.8%</td><td>70.9%</td><td>46.9%</td><td>77.2%</td><td>85.1%</td></tr>
+<tr><td>Zep</td><td>75.1%</td><td>74.1%</td><td>66.0%</td><td>67.7%</td><td>79.8%</td></tr>
+<tr class="winner"><td>🏆 soul.py (RLM) <span style="color:var(--muted);font-size:.75rem">(Gemini 2.0 Flash)</span></td><td>70.0%</td><td>54.1%</td><td class="best">82.1%</td><td>55.1%</td><td>40.0%</td></tr>
+<tr><td>Mem0g (YC 24)</td><td>68.4%</td><td>65.7%</td><td>47.2%</td><td>75.7%</td><td>58.1%</td></tr>
+<tr><td>Mem0 (YC 24)</td><td>66.9%</td><td>67.1%</td><td>51.2%</td><td>72.9%</td><td>55.5%</td></tr>
+<tr><td>LangMem</td><td>58.1%</td><td>62.2%</td><td>47.9%</td><td>71.1%</td><td>23.4%</td></tr>
+<tr><td>OpenAI</td><td>52.9%</td><td>63.8%</td><td>42.9%</td><td>62.3%</td><td>21.7%</td></tr>
+</table>
+</div>
+
+<div class="insight">
+<div class="tag">Context</div>
+<p class="narrative">soul.py RLM <strong>(70.0%)</strong> beats Mem0 (66.9%) and LangMem (58.1%), and has the <strong>highest multi-hop reasoning score (82.1%)</strong> of any system. However, it trails XMem (91.5%), Memobase (75.8%), and Zep (75.1%) on overall scores. Note: XMem uses Gemini 3-flash while soul.py used Gemini 2.0 Flash — model choice matters significantly.</p>
+</div>
+</section>
+
+<section>
 <h2>Key Insights</h2>
 
 <div class="insight">
@@ -210,8 +235,8 @@ We tested 5 retrieval configurations in <a href="https://github.com/menonpg/soul
 </div>
 
 <div class="footer">
-Last updated: 2026-05-18 · Run on soul.py v0.9.x<br>
-<a href="https://github.com/menonpg/soul-benchmarks" style="color:var(--accent)">github.com/menonpg/soul-benchmarks</a> · <a href="https://github.com/menonpg/soul.py" style="color:var(--accent)">soul.py</a>
+Last updated: 2026-07-15 · Run on soul.py v0.9.x<br>
+<a href="https://github.com/menonpg/soul-benchmarks" style="color:var(--accent)">github.com/menonpg/soul-benchmarks</a> · <a href="https://github.com/menonpg/soul.py" style="color:var(--accent)">soul.py</a> · <a href="https://huggingface.co/datasets/pgmenon/soul-benchmarks-locomo" style="color:var(--accent)">🤗 HuggingFace Dataset</a>
 </div>
 
 </body>
