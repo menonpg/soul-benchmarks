@@ -152,7 +152,7 @@ We tested 5 retrieval configurations in <a href="https://github.com/menonpg/soul
 
 <div class="insight">
 <div class="tag">Finding #1</div>
-<p class="narrative"><strong>RLM is the clear winner.</strong> Reinforced Learning Memory outperforms all other retrieval strategies by 4–7 percentage points overall. The gap is largest on temporal reasoning (+10pts) and single-hop recall (+8pts).</p>
+<p class="narrative"><strong>RLM is the clear winner.</strong> Recurrent Language Model memory outperforms all other retrieval strategies by 4–7 percentage points overall. The gap is largest on temporal reasoning (+10pts) and single-hop recall (+8pts).</p>
 </div>
 
 <div class="insight">
@@ -184,7 +184,7 @@ We tested 5 retrieval configurations in <a href="https://github.com/menonpg/soul
 <tr><td><strong>BM25</strong></td><td>Keyword-based retrieval (TF-IDF). Fast, no embeddings. Baseline.</td></tr>
 <tr><td><strong>Qdrant (RAG)</strong></td><td>Vector similarity search using embeddings. Standard RAG approach.</td></tr>
 <tr><td><strong>Hybrid</strong></td><td>BM25 + Qdrant combined with reciprocal rank fusion. Best of both lexical + semantic.</td></tr>
-<tr><td><strong>RLM</strong></td><td>Reinforced Learning Memory — learns retrieval patterns from feedback. Adapts to conversation structure over time.</td></tr>
+<tr><td><strong>RLM</strong></td><td>Recurrent Language Model memory — compresses and maintains a running belief state across turns, enabling structured recall without explicit retrieval. Based on the RLM architecture (Dec 2025).</td></tr>
 <tr><td><strong>Auto</strong></td><td>Dynamically selects between configs per query based on question type. Currently running.</td></tr>
 </table>
 </div>
