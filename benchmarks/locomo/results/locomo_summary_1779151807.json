@@ -1,0 +1,12 @@
+{
+  "auto": {
+    "config": "auto",
+    "single-hop": 42.56,
+    "multi-hop": 78.46,
+    "open-domain": 58.75,
+    "temporal": 26.72,
+    "overall": 64.05,
+    "total_questions": 1986,
+    "errors": 33
+  }
+}
