@@ -2,6 +2,12 @@
 
 ## Date: 2026-05-17/18 (Original) + 2026-05-19/20 (Graph Modes)
 
+### Model Configuration
+- **Base LLM:** Gemini 2.0 Flash (generation, routing, RLM synthesis, LLM judge, graph extraction)
+- **Embeddings:** Azure OpenAI text-embedding-3-large (3072-dim, for Qdrant-based configs)
+- **Vector DB:** Qdrant Cloud (Cosine similarity)
+- **⚠️ Results are model-dependent** — different LLMs will produce different scores
+
 ### All Results (Final)
 
 | Config | Description | Overall | Single-hop | Multi-hop | Open-domain | Temporal | Questions | Errors |

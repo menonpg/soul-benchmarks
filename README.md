@@ -15,7 +15,7 @@ soul.py features a **RAG + RLM (Reflective Latent Memory)** hybrid architecture.
 
 ### LoCoMo (1,986 questions across 10 conversations)
 
-All soul.py configs use **Gemini 2.0 Flash** as the LLM. Scored via exact match (factual) and LLM judge (open-domain).
+All soul.py configs use **Gemini 2.0 Flash** as the base LLM for generation, routing, and RLM synthesis. Embedding model: **Azure OpenAI text-embedding-3-large** (for Qdrant configs). Scoring: exact match for factual categories, LLM judge (Gemini) for open-domain. Changing the LLM will affect results — these numbers are specific to this model configuration.
 
 | System | Description | Single-hop | Multi-hop | Open-domain | Temporal | Overall |
 |--------|-------------|-----------|-----------|-------------|----------|---------|
