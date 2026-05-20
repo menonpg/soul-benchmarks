@@ -1,0 +1,12 @@
+{
+  "graph": {
+    "config": "graph",
+    "single-hop": 16.53,
+    "multi-hop": 50.8,
+    "open-domain": 8.33,
+    "temporal": 16.01,
+    "overall": 38.26,
+    "total_questions": 1986,
+    "errors": 0
+  }
+}

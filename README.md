@@ -13,18 +13,30 @@ soul.py features a **RAG + RLM (Reflective Latent Memory)** hybrid architecture.
 
 ## Results Comparison
 
-### LoCoMo
+### LoCoMo (1,986 questions across 10 conversations)
 
-| System | Single-hop | Multi-hop | Open-domain | Temporal | Overall |
-|--------|-----------|-----------|-------------|----------|---------|
-| Full History (GPT-4) | — | — | — | — | — |
-| Mem0 | — | — | — | — | — |
-| Zep | — | — | — | — | — |
-| Xmem | — | — | — | — | — |
-| LangMem | — | — | — | — | — |
-| **soul.py (RAG)** | — | — | — | — | — |
-| **soul.py (RLM)** | — | — | — | — | — |
-| **soul.py (Auto/Hybrid)** | — | — | — | — | — |
+All soul.py configs use **Gemini 2.0 Flash** as the LLM. Scored via exact match (factual) and LLM judge (open-domain).
+
+| System | Description | Single-hop | Multi-hop | Open-domain | Temporal | Overall |
+|--------|-------------|-----------|-----------|-------------|----------|---------|
+| **soul.py (RLM)** | Recursive LLM synthesis — processes all memory chunks | **54.13%** | **82.06%** | 55.10% | **39.99%** | **69.99%** |
+| **soul.py (RAG+Graph)** | Qdrant semantic search + LLM entity-graph extraction | 45.70% | 81.37% | 52.34% | 34.70% | 67.36% |
+| **soul.py (Hybrid)** | Qdrant semantic RAG + RLM combined | 45.97% | 79.49% | 56.04% | 29.84% | 65.57% |
+| **soul.py (Auto)** | Router dynamically picks RAG or RLM per query | 42.56% | 78.46% | 58.75% | 26.72% | 64.05% |
+| **soul.py (Qdrant RAG)** | Qdrant vector semantic search only | 36.45% | 78.72% | **59.38%** | 26.97% | 63.42% |
+| **soul.py (BM25)** | BM25 keyword search — zero ML baseline | 38.40% | 77.80% | 50.83% | 29.26% | 63.05% |
+| **soul.py (Graph Only)** | LLM entity-graph extraction + traversal only | 16.53% | 50.80% | 8.33% | 16.01% | 38.26% |
+| Mem0 | — | — | — | — | — | — |
+| Zep | — | — | — | — | — | — |
+| Xmem | — | — | — | — | — | — |
+| LangMem | — | — | — | — | — | — |
+
+**Key Findings:**
+- **RLM is the clear winner** at 70.0% — exhaustive recursive synthesis beats selective retrieval
+- **RAG+Graph** (#2 at 67.4%) shows knowledge graphs improve multi-hop reasoning
+- Graph Only (38.3%) confirms graphs must be combined with other retrieval — not standalone
+- Qdrant RAG wins open-domain (59.4%) — vector search surfaces broad context well
+- Multi-hop is consistently strong (78–82%) across all retrieval-based configs
 
 ### LongMemEval-S
 

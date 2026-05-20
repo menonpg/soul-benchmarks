@@ -1,0 +1,12 @@
+{
+  "rag_graph": {
+    "config": "rag_graph",
+    "single-hop": 45.7,
+    "multi-hop": 81.37,
+    "open-domain": 52.34,
+    "temporal": 34.7,
+    "overall": 67.36,
+    "total_questions": 1986,
+    "errors": 500
+  }
+}
