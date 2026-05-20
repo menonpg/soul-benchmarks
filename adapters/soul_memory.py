@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from typing import Literal
 
+from adapters.graph_memory import GraphMemory
+
 # Add soul.py repo to path
 SOUL_REPO = Path(__file__).resolve().parents[1].parent / "soul.py"
 sys.path.insert(0, str(SOUL_REPO))
@@ -188,6 +190,94 @@ def create_auto_adapter(collection_suffix: str = "") -> SoulMemoryAdapter:
     )
 
 
+class GraphSoulMemoryAdapter(SoulMemoryAdapter):
+    """Adapter that adds entity-graph extraction and retrieval."""
+
+    def __init__(self, use_graph_only: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        graph_path = Path(self._tmpdir) / "MEMORY.graph.json"
+        self.graph = GraphMemory(
+            graph_path=str(graph_path),
+            llm_client=self.agent._client,
+            llm_model=self.agent.chat_model,
+        )
+        self.use_graph_only = use_graph_only
+
+    def add_memory(self, conversation_text: str) -> None:
+        super().add_memory(conversation_text)
+        self.graph.extract_and_store(conversation_text)
+
+    def query_memory(self, question: str) -> str:
+        graph_context = self.graph.retrieve(question)
+
+        if self.use_graph_only:
+            # Graph-only: build prompt with graph context, ask LLM directly
+            prompt = (
+                "Use the following entity graph context to answer the question.\n"
+                "Answer precisely and concisely. If the context doesn't contain "
+                "the answer, say you don't know.\n\n"
+                f"{graph_context}\n\nQuestion: {question}"
+            )
+            try:
+                resp = self.agent._client.chat(
+                    model=self.agent.chat_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=256,
+                    temperature=0.0,
+                )
+                if isinstance(resp, dict):
+                    if "choices" in resp:
+                        return resp["choices"][0].get("message", {}).get("content", "")
+                    if "candidates" in resp:
+                        parts = resp["candidates"][0].get("content", {}).get("parts", [])
+                        return parts[0].get("text", "") if parts else ""
+                    if "content" in resp:
+                        content = resp["content"]
+                        if isinstance(content, list):
+                            return content[0].get("text", "") if content else ""
+                        return str(content)
+                return str(resp)
+            except Exception:
+                return f"Graph context: {graph_context}"
+        else:
+            # RAG+Graph: get RAG answer, prepend graph context
+            # Inject graph context into the agent's memory before querying
+            if graph_context:
+                augmented = f"{graph_context}\n\nQuestion: {question}"
+            else:
+                augmented = question
+            result = self.agent.ask(augmented, remember=False)
+            if isinstance(result, dict):
+                return result.get("answer", result.get("response", str(result)))
+            return str(result)
+
+    def reset(self) -> None:
+        super().reset()
+        self.graph.clear()
+
+
+def create_graph_adapter() -> GraphSoulMemoryAdapter:
+    """Config 6: Graph extraction + graph retrieval only."""
+    return GraphSoulMemoryAdapter(
+        provider="gemini",
+        mode="rag",
+        use_qdrant=False,
+        use_graph_only=True,
+    )
+
+
+def create_rag_graph_adapter(collection_suffix: str = "") -> GraphSoulMemoryAdapter:
+    """Config 7: RAG + Graph combined retrieval."""
+    uid = hashlib.md5(os.urandom(8)).hexdigest()[:8]
+    return GraphSoulMemoryAdapter(
+        provider="gemini",
+        mode="auto",
+        use_qdrant=True,
+        use_graph_only=False,
+        collection_name=f"locomo_bench_rag_graph_{uid}{collection_suffix}",
+    )
+
+
 # Convenience aliases
 CONFIGS = {
     "bm25": create_bm25_adapter,
@@ -195,4 +285,6 @@ CONFIGS = {
     "rlm": create_rlm_adapter,
     "hybrid": create_hybrid_adapter,
     "auto": create_auto_adapter,
+    "graph": create_graph_adapter,
+    "rag_graph": create_rag_graph_adapter,
 }
